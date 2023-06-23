@@ -1,0 +1,5 @@
+{
+    "model_path": "EleutherAI/pythia-160m",
+    "delta_type": "lora",
+    "tokenizer_path": "EleutherAI/pythia-160m"
+}

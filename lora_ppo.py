@@ -21,6 +21,7 @@ def get_positive_score(scores):
 def main(hparams={}):
     # Merge sweep config with default config if given
     config = TRLConfig.update(default_ppo_config().to_dict(), hparams)
+
     if torch.cuda.is_available():
         device = int(os.environ.get("LOCAL_RANK", 0))
     else:
@@ -52,5 +53,50 @@ def main(hparams={}):
 
 
 if __name__ == "__main__":
-    hparams = {} if len(sys.argv) == 1 else json.load(open(sys.argv[1], "rb"))
+    hparams = {} if len(sys.argv) == 1 else json.loads(sys.argv[1])
     main(hparams)
+from dataclasses import dataclass, field, asdict
+
+from transformers import HfArgumentParser
+
+
+@dataclass
+class ModelArgs:
+    num_layers_unfrozen: int = 5
+    #learning_rate: float = field(default=1.0e-5)
+    model_path: str = field(default="EleutherAI/pythia-410M")
+    tokenizer_path: str = field(default="EleutherAI/gpt-neox-20b")
+
+
+@dataclass
+class LoraArgs:
+    lora_r: int = field(default=8)
+    lora_alpha: float = field(default=16)
+    delta_type: str = field(default="lora")
+
+@dataclass
+class TrainingArgs:
+    batch_size: int = 2
+
+
+
+if __name__ == "__main__":
+    # use hf-argument-parser to parse hparams
+    import torch 
+    # access local rank from env as integer
+    import os 
+    rank = os.environ.get("LOCAL_RANK", 0)
+    print(rank)
+    # torch.cuda.empty_cache()
+    # torch.cuda.set_per_process_memory_fraction(0.9, device=f"cuda:{rank}")
+    parser = HfArgumentParser((LoraArgs, ModelArgs, TrainingArgs))
+    lora_args, model_args, training_args = parser.parse_args_into_dataclasses()
+    hparams = asdict(model_args)
+    hparams["delta_kwargs"] = asdict(lora_args)
+    training_args = asdict(training_args)
+    hparams = {"model": hparams, "train": training_args}
+
+    import json
+    print(json.dumps(hparams))
+    pprint(hparams)
+    # main(hparams)
